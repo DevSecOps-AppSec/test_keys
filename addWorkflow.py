@@ -1,92 +1,74 @@
-import requests
-import base64
-import urllib.parse
+import csv
+from github import Github
 
-# GitHub API endpoint
-github_api = "https://api.github.com/repos"
+# Function to read CSV file and return data
+def read_csv(filename):
+    with open(filename, 'r') as file:
+        reader = csv.DictReader(file)
+        return list(reader)
 
-# GitHub token
-token = "PAT_TOKEN"
+# Function to add a workflow file to a GitHub repository
+def add_workflow_to_repo(repo, default_branch):
+    workflow_content = """
+name: Gitleaks - Scanning Secrets in PR
+on:
+  push:
+    branches:
+      - 'track/dev'
+      - 'track/test'
+      - 'track/prod'
+      - 'main'
+      - 'master'
+  pull_request:
+    types:
+      - synchronize
+      - opened
+    branches:
+      - 'track/dev'
+      - 'track/prod'
+      - 'main'
+      - 'master'
+jobs:
+  scan:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+""".format(default_branch, default_branch)
 
-# File containing repository names
-repos_file = "non_archived_repos.txt"
+    try:
+        repo.create_file(".github/workflows/gitleaks.yml", "Adding CI workflow", workflow_content, branch=default_branch)
+        print(f"Workflow file added to {repo.full_name} successfully.")
+    except Exception as e:
+        print(f"Failed to add workflow file to {repo.full_name}. Error: {e}")
 
-# Read repository names from the file
-with open(repos_file, 'r') as f:
-    repos = f.read().splitlines()
+# GitHub credentials and organization name
+github_token = 'PAT_TOKEN'
+organization_name = 'ORG_NAME'
 
-# Iterate over each repository
-for repo_name in repos:
-    # Repository owner
-    owner = "Capillary"
-    
-    # Repository name (read from the file)
-    repo = repo_name
+# Read repository information and default branch names from CSV
+csv_file = 'data.csv'
+repos_info = read_csv(csv_file)
 
-    # File path
-    path = urllib.parse.quote(".github/workflows/gitleaks_secret_scan.yml")
-    print(path)
-    # Commit message
-    commit_message = "Adding GitLeaks Workflow"
+# Connect to GitHub
+g = Github(github_token)
 
-    # Content
-    content = """
-    name: Gitleaks - Scanning Secrets in PR
-    on:
-      push:
-        branches:
-          - 'main'
-          - 'master'
-      pull_request:
-        types:
-          - synchronize
-          - opened
-        branches:
-          - 'main'
-          - 'master'
-    jobs:
-      scan:
-        name: gitleaks
-        runs-on: ubuntu-latest
-        steps:
-          - uses: actions/checkout@v3
-            with:
-              fetch-depth: 0
-          - uses: gitleaks/gitleaks-action@v2
-            env:
-              GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
-              GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE}}
-    """
+# Get organization
+org = g.get_organization(organization_name)
 
-    # Committer information
-    committer_name = "Souradip Ghosh"
-    committer_email = "Email ID"
+# Iterate over repositories and add workflow file
+for repo_info in repos_info:
+    repo_name = repo_info['Repository']
+    default_branch = repo_info['DefaultBranch']
 
-    # Construct the API URL
-    api_url = f"{github_api}/{owner}/{repo}/contents/{path}"
+    # Get repository
+    repo = org.get_repo(repo_name)
 
-    # Encode content
-    encoded_content = base64.b64encode(content.encode()).decode()
-
-    # Data payload
-    data = {
-        "message": commit_message,
-        "content": encoded_content
-    }
-
-    # Headers
-    headers = {
-        "Accept": "application/vnd.github+json",
-        "Authorization": f"Bearer {token}",
-        "X-GitHub-Api-Version": "2022-11-28"
-    }
-
-    # Make the request
-    response = requests.put(api_url, headers=headers, json=data)
-
-    # Check response
-    if response.status_code == 201:
-        print(f"File created successfully for repository: {repo}")
-    else:
-        print(f"Failed to create file for repository: {repo}. Status code: {response.status_code}")
-        print(f"Response content: {response.content}")
+    # Add workflow file
+    add_workflow_to_repo(repo, default_branch)
