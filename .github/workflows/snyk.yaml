@@ -6,14 +6,14 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Run Snyk to check for vulnerabilities in dependencies
-        uses: snyk/actions/node@master # See https://github.com/snyk/actions for other supported build tools/languages
+        uses: snyk/actions/python@master # See https://github.com/snyk/actions for other supported build tools/languages
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test --all-projects --json-file-output=snyk_dependencies.json
       - name: Run Snyk to check for vulnerabilities in code
-        uses: snyk/actions/node@master # See https://github.com/snyk/actions for other supported build tools/languages
+        uses: snyk/actions/python@master # See https://github.com/snyk/actions for other supported build tools/languages
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
