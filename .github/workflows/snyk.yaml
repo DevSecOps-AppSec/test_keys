@@ -1,4 +1,4 @@
-name: Workflow for SAST & SCA
+name: Snyk Workflow for SAST & SCA
 on: push
 jobs:
   security:
