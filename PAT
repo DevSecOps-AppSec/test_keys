@@ -1,2 +1,2 @@
 [default]
-PAT = ***REMOVED***
+PAT = test_data
