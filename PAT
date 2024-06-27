@@ -1,2 +1,2 @@
 [default]
-PAT = ***REMOVED***0123
+PAT = test
